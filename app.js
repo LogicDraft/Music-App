@@ -1,615 +1,292 @@
-/* ═══════════════════════════════════════════════════════════════
-   NEXUS PIANO — app.js
-   Full keyboard-driven piano with Tone.js, recording, FX, canvas
-   ═══════════════════════════════════════════════════════════════ */
-
 'use strict';
 
-// ─── Constants ─────────────────────────────────────────────────────────────
-
-const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-
-// Keyboard layout → [semitone offset from base, isBlack]
-const KEY_MAP = {
-  // Top row → sharps (black keys)
-  KeyQ: { semi:  1, black: true,  label:'Q',  rowNote:'C#' },
-  KeyW: { semi:  3, black: true,  label:'W',  rowNote:'D#' },
-  KeyE: { semi:  6, black: true,  label:'E',  rowNote:'F#' },
-  KeyR: { semi:  8, black: true,  label:'R',  rowNote:'G#' },
-  KeyT: { semi: 10, black: true,  label:'T',  rowNote:'A#' },
-  KeyY: { semi: 13, black: true,  label:'Y',  rowNote:'C#²' },
-  KeyU: { semi: 15, black: true,  label:'U',  rowNote:'D#²' },
-  KeyI: { semi: 18, black: true,  label:'I',  rowNote:'F#²' },
-  KeyO: { semi: 20, black: true,  label:'O',  rowNote:'G#²' },
-  KeyP: { semi: 22, black: true,  label:'P',  rowNote:'A#²' },
-
-  // Middle row → white keys
-  KeyA: { semi:  0, black: false, label:'A',  rowNote:'C'  },
-  KeyS: { semi:  2, black: false, label:'S',  rowNote:'D'  },
-  KeyD: { semi:  4, black: false, label:'D',  rowNote:'E'  },
-  KeyF: { semi:  5, black: false, label:'F',  rowNote:'F'  },
-  KeyG: { semi:  7, black: false, label:'G',  rowNote:'G'  },
-  KeyH: { semi:  9, black: false, label:'H',  rowNote:'A'  },
-  KeyJ: { semi: 11, black: false, label:'J',  rowNote:'B'  },
-  KeyK: { semi: 12, black: false, label:'K',  rowNote:'C²' },
-  KeyL: { semi: 14, black: false, label:'L',  rowNote:'D²' },
-
-  // Bottom row → low octave
-  KeyZ: { semi: -12, black: false, label:'Z',  rowNote:'C-1' },
-  KeyX: { semi: -10, black: false, label:'X',  rowNote:'D-1' },
-  KeyC: { semi:  -8, black: false, label:'C',  rowNote:'E-1' },
-  KeyV: { semi:  -7, black: false, label:'V',  rowNote:'F-1' },
-  KeyB: { semi:  -5, black: false, label:'B',  rowNote:'G-1' },
-  KeyN: { semi:  -3, black: false, label:'N',  rowNote:'A-1' },
-  KeyM: { semi:  -1, black: false, label:'M',  rowNote:'B-1' },
+// ── Instrument Definitions ─────────────────────────────────────────────────
+const INST = {
+  piano: {
+    name:'PIANO', icon:'🎹', color:'#00d4ff', shadow:'rgba(0,212,255,0.4)',
+    layout:'piano',
+    osc:'triangle', env:{attack:0.008,decay:0.3,sustain:0.6,release:1.5},
+    keys:[
+      {code:'KeyQ',label:'Q',note:'C#4',type:'black'},{code:'KeyW',label:'W',note:'D#4',type:'black'},
+      {code:'KeyE',label:'E',note:'F#4',type:'black'},{code:'KeyR',label:'R',note:'G#4',type:'black'},
+      {code:'KeyT',label:'T',note:'A#4',type:'black'},{code:'KeyY',label:'Y',note:'C#5',type:'black'},
+      {code:'KeyU',label:'U',note:'D#5',type:'black'},{code:'KeyI',label:'I',note:'F#5',type:'black'},
+      {code:'KeyO',label:'O',note:'G#5',type:'black'},{code:'KeyP',label:'P',note:'A#5',type:'black'},
+      {code:'KeyA',label:'A',note:'C4',type:'white'},{code:'KeyS',label:'S',note:'D4',type:'white'},
+      {code:'KeyD',label:'D',note:'E4',type:'white'},{code:'KeyF',label:'F',note:'F4',type:'white'},
+      {code:'KeyG',label:'G',note:'G4',type:'white'},{code:'KeyH',label:'H',note:'A4',type:'white'},
+      {code:'KeyJ',label:'J',note:'B4',type:'white'},{code:'KeyK',label:'K',note:'C5',type:'white'},
+      {code:'KeyL',label:'L',note:'D5',type:'white'},
+      {code:'KeyZ',label:'Z',note:'C3',type:'white'},{code:'KeyX',label:'X',note:'D3',type:'white'},
+      {code:'KeyC',label:'C',note:'E3',type:'white'},{code:'KeyV',label:'V',note:'F3',type:'white'},
+      {code:'KeyB',label:'B',note:'G3',type:'white'},{code:'KeyN',label:'N',note:'A3',type:'white'},
+      {code:'KeyM',label:'M',note:'B3',type:'white'},
+    ]
+  },
+  epiano: {
+    name:'E-PIANO', icon:'🎹', color:'#22d3ee', shadow:'rgba(34,211,238,0.4)',
+    layout:'piano',
+    osc:'fmsinc', env:{attack:0.01,decay:0.2,sustain:0.4,release:1.5},
+    keys:null // same as piano
+  },
+  synth: {
+    name:'SYNTH', icon:'🎛️', color:'#8b5cf6', shadow:'rgba(139,92,246,0.4)',
+    layout:'piano',
+    osc:'square', env:{attack:0.01,decay:0.25,sustain:0.5,release:1},
+    keys:null
+  },
+  guitar: {
+    name:'GUITAR', icon:'🎸', color:'#f59e0b', shadow:'rgba(245,158,11,0.4)',
+    layout:'guitar',
+    osc:'pwm', env:{attack:0.02,decay:0.4,sustain:0.2,release:1},
+    // 6 strings × 4 frets
+    strings:[
+      {name:'e',label:'High e', keys:[
+        {code:'KeyP',label:'P',note:'E5'},{code:'KeyO',label:'O',note:'F5'},
+        {code:'KeyI',label:'I',note:'F#5'},{code:'KeyU',label:'U',note:'G5'}]},
+      {name:'B',label:'B', keys:[
+        {code:'KeyL',label:'L',note:'B4'},{code:'KeyK',label:'K',note:'C5'},
+        {code:'KeyJ',label:'J',note:'C#5'},{code:'KeyH',label:'H',note:'D5'}]},
+      {name:'G',label:'G', keys:[
+        {code:'KeyM',label:'M',note:'G4'},{code:'KeyN',label:'N',note:'G#4'},
+        {code:'KeyB',label:'B',note:'A4'},{code:'KeyV',label:'V',note:'A#4'}]},
+      {name:'D',label:'D', keys:[
+        {code:'KeyA',label:'A',note:'D4'},{code:'KeyS',label:'S',note:'D#4'},
+        {code:'KeyD',label:'D',note:'E4'},{code:'KeyF',label:'F',note:'F4'}]},
+      {name:'A',label:'A', keys:[
+        {code:'KeyQ',label:'Q',note:'A3'},{code:'KeyW',label:'W',note:'A#3'},
+        {code:'KeyE',label:'E',note:'B3'},{code:'KeyR',label:'R',note:'C4'}]},
+      {name:'E',label:'Low E', keys:[
+        {code:'KeyZ',label:'Z',note:'E3'},{code:'KeyX',label:'X',note:'F3'},
+        {code:'KeyC',label:'C',note:'F#3'},{code:'KeyT',label:'T',note:'G3'}]},
+    ]
+  },
+  bass: {
+    name:'BASS', icon:'🎸', color:'#ef4444', shadow:'rgba(239,68,68,0.4)',
+    layout:'guitar',
+    osc:'triangle', env:{attack:0.02,decay:0.5,sustain:0.4,release:0.8},
+    strings:[
+      {name:'G',label:'G', keys:[
+        {code:'KeyL',label:'L',note:'G3'},{code:'KeyK',label:'K',note:'G#3'},
+        {code:'KeyJ',label:'J',note:'A3'},{code:'KeyH',label:'H',note:'A#3'}]},
+      {name:'D',label:'D', keys:[
+        {code:'KeyA',label:'A',note:'D3'},{code:'KeyS',label:'S',note:'D#3'},
+        {code:'KeyD',label:'D',note:'E3'},{code:'KeyF',label:'F',note:'F3'}]},
+      {name:'A',label:'A', keys:[
+        {code:'KeyQ',label:'Q',note:'A2'},{code:'KeyW',label:'W',note:'A#2'},
+        {code:'KeyE',label:'E',note:'B2'},{code:'KeyR',label:'R',note:'C3'}]},
+      {name:'E',label:'Low E', keys:[
+        {code:'KeyZ',label:'Z',note:'E2'},{code:'KeyX',label:'X',note:'F2'},
+        {code:'KeyC',label:'C',note:'F#2'},{code:'KeyV',label:'V',note:'G2'}]},
+    ]
+  },
+  violin: {
+    name:'VIOLIN', icon:'🎻', color:'#d946ef', shadow:'rgba(217,70,239,0.4)',
+    layout:'strings',
+    osc:'sawtooth', env:{attack:0.3,decay:0.1,sustain:0.9,release:1.5},
+    sections:[
+      {label:'E STRING', keys:[
+        {code:'KeyQ',label:'Q',note:'E5'},{code:'KeyW',label:'W',note:'F5'},
+        {code:'KeyE',label:'E',note:'F#5'},{code:'KeyR',label:'R',note:'G5'}]},
+      {label:'A STRING', keys:[
+        {code:'KeyA',label:'A',note:'A4'},{code:'KeyS',label:'S',note:'B4'},
+        {code:'KeyD',label:'D',note:'C5'},{code:'KeyF',label:'F',note:'D5'}]},
+      {label:'D STRING', keys:[
+        {code:'KeyZ',label:'Z',note:'D4'},{code:'KeyX',label:'X',note:'E4'},
+        {code:'KeyC',label:'C',note:'F4'},{code:'KeyV',label:'V',note:'G4'}]},
+    ]
+  },
+  flute: {
+    name:'FLUTE', icon:'🪈', color:'#14b8a6', shadow:'rgba(20,184,166,0.4)',
+    layout:'strings',
+    osc:'fmsinc', env:{attack:0.1,decay:0.1,sustain:0.8,release:0.8},
+    sections:[
+      {label:'HIGH', keys:[
+        {code:'KeyQ',label:'Q',note:'D6'},{code:'KeyW',label:'W',note:'E6'},
+        {code:'KeyE',label:'E',note:'F6'},{code:'KeyR',label:'R',note:'G6'}]},
+      {label:'MID', keys:[
+        {code:'KeyA',label:'A',note:'G5'},{code:'KeyS',label:'S',note:'A5'},
+        {code:'KeyD',label:'D',note:'B5'},{code:'KeyF',label:'F',note:'C6'}]},
+      {label:'LOW', keys:[
+        {code:'KeyZ',label:'Z',note:'D5'},{code:'KeyX',label:'X',note:'E5'},
+        {code:'KeyC',label:'C',note:'F5'},{code:'KeyV',label:'V',note:'G5'}]},
+    ]
+  },
+  drums: {
+    name:'DRUMS', icon:'🥁', color:'#f97316', shadow:'rgba(249,115,22,0.4)',
+    layout:'drums',
+    pads:[
+      {code:'KeyQ', label:'Q', name:'CLAP',   color:'#86efac', bg:'rgba(134,239,172,0.12)', gc:[2,1], shape:'cymbal'},
+      {code:'KeyW', label:'W', name:'COWBELL', color:'#fde68a', bg:'rgba(253,230,138,0.12)', gc:[4,1], shape:'cymbal'},
+      {code:'KeyE', label:'E', name:'RIM',    color:'#c4b5fd', bg:'rgba(196,181,253,0.12)', gc:[6,1], shape:'cymbal'},
+      {code:'KeyG', label:'G', name:'CRASH',  color:'#a855f7', bg:'rgba(168,85,247,0.12)', gc:[1,2], shape:'cymbal'},
+      {code:'KeyD', label:'D', name:'HI-HAT', color:'#00d4ff', bg:'rgba(0,212,255,0.12)',  gc:[3,2], shape:'hihat'},
+      {code:'KeyF', label:'F', name:'OPEN HH',color:'#22d3ee', bg:'rgba(34,211,238,0.12)', gc:[5,2], shape:'hihat'},
+      {code:'KeyH', label:'H', name:'RIDE',   color:'#818cf8', bg:'rgba(129,140,248,0.12)', gc:[7,2], shape:'cymbal'},
+      {code:'KeyJ', label:'J', name:'TOM 1',  color:'#f9a8d4', bg:'rgba(249,168,212,0.12)', gc:[2,3], shape:'tom'},
+      {code:'KeyS', label:'S', name:'SNARE',  color:'#fbbf24', bg:'rgba(251,191,36,0.12)', gc:[4,3], shape:'snare'},
+      {code:'KeyK', label:'K', name:'TOM 2',  color:'#fb7185', bg:'rgba(251,113,133,0.12)', gc:[6,3], shape:'tom'},
+      {code:'KeyA', label:'A', name:'KICK',   color:'#f97316', bg:'rgba(249,115,22,0.15)', gc:[3,4], shape:'kick'},
+      {code:'KeyL', label:'L', name:'FLOOR',  color:'#ef4444', bg:'rgba(239,68,68,0.12)', gc:[5,4], shape:'tom'},
+    ]
+  },
+  pads: {
+    name:'EDM PADS', icon:'✨', color:'#ec4899', shadow:'rgba(236,72,153,0.4)',
+    layout:'pads',
+    osc:'sine', env:{attack:0.4,decay:0.5,sustain:1,release:3},
+    pads:[
+      {code:'KeyQ',label:'Q',name:'PAD 1', note:'C4',  color:'#ec4899', border:'rgba(236,72,153,0.5)'},
+      {code:'KeyW',label:'W',name:'PAD 2', note:'D#4', color:'#a855f7', border:'rgba(168,85,247,0.5)'},
+      {code:'KeyE',label:'E',name:'PAD 3', note:'F4',  color:'#00d4ff', border:'rgba(0,212,255,0.5)'},
+      {code:'KeyR',label:'R',name:'PAD 4', note:'G#4', color:'#14b8a6', border:'rgba(20,184,166,0.5)'},
+      {code:'KeyA',label:'A',name:'PAD 5', note:'A#4', color:'#f59e0b', border:'rgba(245,158,11,0.5)'},
+      {code:'KeyS',label:'S',name:'PAD 6', note:'C5',  color:'#ef4444', border:'rgba(239,68,68,0.5)'},
+      {code:'KeyD',label:'D',name:'PAD 7', note:'D5',  color:'#8b5cf6', border:'rgba(139,92,246,0.5)'},
+      {code:'KeyF',label:'F',name:'PAD 8', note:'F5',  color:'#22d3ee', border:'rgba(34,211,238,0.5)'},
+      {code:'KeyZ',label:'Z',name:'PAD 9', note:'G5',  color:'#e879f9', border:'rgba(232,121,249,0.5)'},
+      {code:'KeyX',label:'X',name:'PAD 10',note:'A5',  color:'#00ff88', border:'rgba(0,255,136,0.5)'},
+      {code:'KeyC',label:'C',name:'PAD 11',note:'C6',  color:'#ff6eb4', border:'rgba(255,110,180,0.5)'},
+      {code:'KeyV',label:'V',name:'PAD 12',note:'D#6', color:'#fde68a', border:'rgba(253,230,138,0.5)'},
+    ]
+  }
 };
 
-const ROW_TOP = ['KeyQ','KeyW','KeyE','KeyR','KeyT','KeyY','KeyU','KeyI','KeyO','KeyP'];
-const ROW_MID = ['KeyA','KeyS','KeyD','KeyF','KeyG','KeyH','KeyJ','KeyK','KeyL'];
-const ROW_BOT = ['KeyZ','KeyX','KeyC','KeyV','KeyB','KeyN','KeyM'];
+// copy piano keys to epiano and synth
+INST.epiano.keys = INST.piano.keys;
+INST.synth.keys  = INST.piano.keys;
 
-const THEMES = ['default', 'white'];
-
-const INSTRUMENTS = {
-  piano:   { color: '#00d4ff', shadow: 'rgba(0,212,255,0.4)',  name: 'PIANO' },
-  epiano:  { color: '#22d3ee', shadow: 'rgba(34,211,238,0.4)', name: 'E-PIANO' },
-  guitar:  { color: '#f59e0b', shadow: 'rgba(245,158,11,0.4)', name: 'GUITAR' },
-  bass:    { color: '#ef4444', shadow: 'rgba(239,68,68,0.4)',  name: 'BASS' },
-  violin:  { color: '#d946ef', shadow: 'rgba(217,70,239,0.4)', name: 'VIOLIN' },
-  flute:   { color: '#14b8a6', shadow: 'rgba(20,184,166,0.4)', name: 'FLUTE' },
-  drums:   { color: '#f97316', shadow: 'rgba(249,115,22,0.4)', name: 'DRUMS' },
-  synth:   { color: '#8b5cf6', shadow: 'rgba(139,92,246,0.4)', name: 'SYNTH' },
-  pads:    { color: '#ec4899', shadow: 'rgba(236,72,153,0.4)', name: 'EDM PADS' }
-};
-
-// ─── State ─────────────────────────────────────────────────────────────────
-
-let baseOctave  = 4;
-let volume      = 0.75;
-let sustainMode = false;
-let isRecording = false;
+// ── State ─────────────────────────────────────────────────────────────────
+let currentInst   = 'piano';
+let pressedKeys   = new Set();
+let activeNotes   = {};
+let volume        = 0.75;
+let baseOctave    = 4;
+let sustainMode   = false;
+let useReverb     = true;
+let useEcho       = false;
+let isRecording   = false;
+let isLooping     = false;
 let recordedNotes = [];
-let recordStartTime = 0;
-let playbackTimeout = [];
-let pressedKeys = new Set();
-let activeNotes = {};    // code → Tone.PolySynth note id
-let themeIdx = 0;
-let currentInst = 'piano';
-let synths = {};
-let useReverb = true;
-let useEcho = false;
-let isLooping = false;
+let recStart      = 0;
+let playTimers    = [];
+let themeIdx      = 0;
 
-// ─── Audio Engine (Tone.js) ─────────────────────────────────────────────────
-
-let noiseSynth, reverbNode, echoNode, limiterNode;
+// ── Audio ──────────────────────────────────────────────────────────────────
+let synths = {}, reverb, echo, limiter, noiseSynth;
 
 function buildAudio() {
-  limiterNode = new Tone.Limiter(-3).toDestination();
-  reverbNode  = new Tone.Reverb({ decay: 2.5, wet: 0.25 }).connect(limiterNode);
-  echoNode    = new Tone.FeedbackDelay("8n", 0.4).connect(limiterNode);
+  limiter   = new Tone.Limiter(-3).toDestination();
+  reverb    = new Tone.Reverb({ decay:2.5, wet:0.3 }).connect(limiter);
+  echo      = new Tone.FeedbackDelay('8n', 0.35).connect(limiter);
+  noiseSynth= new Tone.NoiseSynth({ noise:{type:'white'}, envelope:{attack:0.005,decay:0.08,sustain:0} }).connect(reverb);
 
-  // Dash sound synth
-  noiseSynth = new Tone.NoiseSynth({
-    noise: { type: 'white' },
-    envelope: { attack: 0.005, decay: 0.1, sustain: 0 }
-  }).connect(reverbNode);
+  const mk = (osc, env, vol=-6) => new Tone.PolySynth(Tone.Synth, { oscillator:{type:osc}, envelope:env, volume:vol });
+  const mkFM= (env, vol=-6) => new Tone.PolySynth(Tone.FMSynth, { envelope:env, harmonicity:3, modulationIndex:8, volume:vol });
+  const mkMem=() => new Tone.PolySynth(Tone.MembraneSynth, { pitchDecay:0.05, octaves:3, envelope:{attack:0.001,decay:0.4,sustain:0,release:1.4}, volume:-4 });
 
-  synths.piano = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'triangle' }, envelope: { attack: 0.008, decay: 0.3, sustain: 0.6, release: 1.5 }});
-  synths.epiano = new Tone.PolySynth(Tone.FMSynth, { harmonicity: 3, modulationIndex: 10, oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 1.5 }});
-  synths.guitar = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'pwm', modulationFrequency: 0.2 }, envelope: { attack: 0.02, decay: 0.3, sustain: 0.2, release: 1.2 }});
-  synths.bass = new Tone.PolySynth(Tone.AMSynth, { oscillator: { type: 'triangle' }, envelope: { attack: 0.02, decay: 0.5, sustain: 0.4, release: 0.8 }});
-  synths.violin = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'sawtooth' }, envelope: { attack: 0.3, decay: 0.2, sustain: 0.8, release: 1.5 }});
-  synths.flute = new Tone.PolySynth(Tone.FMSynth, { harmonicity: 2, modulationIndex: 2, oscillator: { type: 'sine' }, envelope: { attack: 0.1, decay: 0.2, sustain: 0.7, release: 0.8 }});
-  synths.synth = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'square' }, envelope: { attack: 0.01, decay: 0.3, sustain: 0.5, release: 1 }});
-  synths.pads = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'sine' }, envelope: { attack: 0.5, decay: 0.5, sustain: 1, release: 3 }});
-  synths.drums = new Tone.PolySynth(Tone.MembraneSynth, { pitchDecay: 0.05, octaves: 2, oscillator: { type: 'sine' }, envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4 }});
+  synths.piano  = mk('triangle', {attack:0.008,decay:0.3,sustain:0.6,release:1.5});
+  synths.epiano = mkFM({attack:0.01,decay:0.2,sustain:0.4,release:1.5});
+  synths.synth  = mk('square',   {attack:0.01,decay:0.25,sustain:0.5,release:1});
+  synths.guitar = mk('pwm',      {attack:0.02,decay:0.4,sustain:0.2,release:1},-5);
+  synths.bass   = mk('triangle', {attack:0.02,decay:0.5,sustain:0.4,release:0.8},-4);
+  synths.violin = mk('sawtooth', {attack:0.3,decay:0.1,sustain:0.9,release:1.5},-5);
+  synths.flute  = mkFM({attack:0.1,decay:0.1,sustain:0.8,release:0.8},-6);
+  synths.drums  = mkMem();
+  synths.pads   = mk('sine',     {attack:0.4,decay:0.5,sustain:1,release:3},-7);
 
-  updateFXRouting();
-  setVolume(volume);
+  routeFX();
+  setVol(volume);
 }
 
-function updateFXRouting() {
+function routeFX() {
   Object.values(synths).forEach(s => {
     s.disconnect();
-    if (useEcho && useReverb) { s.connect(echoNode); echoNode.disconnect(); echoNode.connect(reverbNode); }
-    else if (useEcho) { s.connect(echoNode); echoNode.disconnect(); echoNode.connect(limiterNode); }
-    else if (useReverb) { s.connect(reverbNode); }
-    else { s.connect(limiterNode); }
+    if (useReverb && useEcho) { s.connect(echo); echo.disconnect(); echo.connect(reverb); }
+    else if (useEcho)  { s.connect(echo); echo.disconnect(); echo.connect(limiter); }
+    else if (useReverb){ s.connect(reverb); }
+    else { s.connect(limiter); }
   });
+  noiseSynth.connect(useReverb ? reverb : limiter);
 }
 
-function noteForCode(code) {
-  const map = KEY_MAP[code];
-  if (!map) return null;
-  const midiBase = (baseOctave + 1) * 12; // C4 = MIDI 60
-  const midi = midiBase + map.semi;
-  if (midi < 0 || midi > 127) return null;
-  const oct  = Math.floor(midi / 12) - 1;
-  const name = NOTE_NAMES[midi % 12];
-  return { freq: Tone.Frequency(midi, 'midi').toFrequency(), name, oct, midi, isLow: map.semi < 0 };
+function setVol(v) {
+  volume = v;
+  const db = v === 0 ? -Infinity : 20*Math.log10(v) - 4;
+  Object.values(synths).forEach(s => { s.volume.value = db; });
+  if (noiseSynth) noiseSynth.volume.value = db;
+}
+
+function getNoteForKey(code) {
+  const inst = INST[currentInst];
+  if (inst.layout === 'piano') {
+    const k = inst.keys.find(k => k.code === code);
+    return k ? k.note : null;
+  }
+  if (inst.layout === 'guitar') {
+    for (const str of inst.strings) {
+      const k = str.keys.find(k => k.code === code);
+      if (k) return k.note;
+    }
+    return null;
+  }
+  if (inst.layout === 'strings') {
+    for (const sec of inst.sections) {
+      const k = sec.keys.find(k => k.code === code);
+      if (k) return k.note;
+    }
+    return null;
+  }
+  if (inst.layout === 'drums' || inst.layout === 'pads') {
+    const p = inst.pads.find(p => p.code === code);
+    return p ? (p.note || p.name) : null;
+  }
+  return null;
+}
+
+function getLabelForKey(code) {
+  const inst = INST[currentInst];
+  if (inst.layout === 'piano') return inst.keys.find(k=>k.code===code)?.note || null;
+  if (inst.layout === 'guitar') { for (const s of inst.strings) { const k=s.keys.find(k=>k.code===code); if(k) return k.note; } }
+  if (inst.layout === 'strings') { for (const s of inst.sections) { const k=s.keys.find(k=>k.code===code); if(k) return k.note; } }
+  if (inst.layout === 'drums') return inst.pads.find(p=>p.code===code)?.name || null;
+  if (inst.layout === 'pads')  return inst.pads.find(p=>p.code===code)?.name || null;
+  return null;
 }
 
 function playNote(code) {
   if (pressedKeys.has(code)) return;
-  pressedKeys.add(code);
-  const note = noteForCode(code);
+  const note = getNoteForKey(code);
   if (!note) return;
+  pressedKeys.add(code);
 
   const s = synths[currentInst];
-  s.triggerAttack(note.freq, Tone.now());
-  activeNotes[code] = note.freq;
-
-  updateNoteDisplay(note.name + note.oct);
+  // drums = percussive short hits
+  if (currentInst === 'drums') {
+    s.triggerAttackRelease(note.replace(/\D/g,'') ? note : 'C2', '8n', Tone.now());
+  } else {
+    s.triggerAttack(note, Tone.now());
+  }
+  activeNotes[code] = note;
+  showNote(getLabelForKey(code) || note);
   activateKey(code);
   spawnRipple(code);
   bumpEQ();
 
   if (isRecording) {
-    recordedNotes.push({ code, freq: note.freq, name: note.name + note.oct, isLow: note.isLow, t: performance.now() - recordStartTime, type: 'on' });
+    recordedNotes.push({ code, note, t: performance.now()-recStart, type:'on', inst:currentInst });
   }
 }
 
 function stopNote(code) {
   if (!pressedKeys.has(code)) return;
   pressedKeys.delete(code);
-  const freq = activeNotes[code];
-  if (!freq) return;
-
-  if (!sustainMode) {
-    const note = noteForCode(code);
-    const s = synths[currentInst];
-    s.triggerRelease(freq, Tone.now());
+  const note = activeNotes[code];
+  if (!note) return;
+  if (!sustainMode && currentInst !== 'drums') {
+    synths[currentInst].triggerRelease(note, Tone.now());
   }
   delete activeNotes[code];
-
   deactivateKey(code);
-
-  if (pressedKeys.size === 0) resetNoteDisplay();
-  if (isRecording) {
-    recordedNotes.push({ code, t: performance.now() - recordStartTime, type: 'off' });
-  }
+  if (pressedKeys.size === 0) resetNote();
+  if (isRecording) recordedNotes.push({ code, t:performance.now()-recStart, type:'off' });
 }
-
-function setVolume(v) {
-  volume = v;
-  const db = v === 0 ? -Infinity : 20 * Math.log10(v) - 6;
-  if (synth)      synth.volume.value      = db;
-  if (synthLow)   synthLow.volume.value   = db;
-  if (noiseSynth) noiseSynth.volume.value = db;
-}
-
-// ─── UI: Key DOM ────────────────────────────────────────────────────────────
-
-function buildKeyboard() {
-  renderRow('keys-top', ROW_TOP);
-  renderRow('keys-mid', ROW_MID);
-  renderRow('keys-bot', ROW_BOT);
-}
-
-function renderRow(containerId, codes) {
-  const el = document.getElementById(containerId);
-  el.innerHTML = '';
-  codes.forEach(code => {
-    const cfg = KEY_MAP[code];
-    const div = document.createElement('div');
-    div.className = `piano-key ${cfg.black ? 'black-key' : 'white-key'}`;
-    div.id = `key-${code}`;
-    div.innerHTML = `
-      <span class="key-label">${cfg.label}</span>
-      <span class="key-note">${cfg.rowNote}</span>`;
-    // Mouse support
-    div.addEventListener('mousedown', () => { Tone.start(); playNote(code); });
-    div.addEventListener('mouseup',   () => stopNote(code));
-    div.addEventListener('mouseleave',() => stopNote(code));
-    el.appendChild(div);
-  });
-}
-
-function activateKey(code) {
-  const el = document.getElementById(`key-${code}`);
-  if (el) el.classList.add('active');
-}
-function deactivateKey(code) {
-  const el = document.getElementById(`key-${code}`);
-  if (el) el.classList.remove('active');
-}
-
-// ─── UI: Note Display ───────────────────────────────────────────────────────
-
-function updateNoteDisplay(name) {
-  const el = document.getElementById('note-name');
-  el.textContent = name;
-  el.style.color = 'var(--blue)';
-  el.style.textShadow = '0 0 30px var(--blue), 0 0 60px rgba(0,212,255,0.4)';
-  document.getElementById('note-label').textContent = 'NOW PLAYING';
-}
-function resetNoteDisplay() {
-  document.getElementById('note-name').textContent = '—';
-  document.getElementById('note-label').textContent = 'PRESS A KEY TO PLAY';
-}
-
-// ─── Ripple Effect ──────────────────────────────────────────────────────────
-
-function spawnRipple(code) {
-  const keyEl = document.getElementById(`key-${code}`);
-  if (!keyEl) return;
-  const rect = keyEl.getBoundingClientRect();
-  const cx = rect.left + rect.width / 2;
-  const cy = rect.top  + rect.height / 2;
-  const size = KEY_MAP[code].black ? 60 : 80;
-  const colors = ['rgba(0,212,255,0.6)', 'rgba(168,85,247,0.6)', 'rgba(232,121,249,0.6)', 'rgba(34,211,238,0.6)'];
-  const color  = colors[Math.floor(Math.random() * colors.length)];
-
-  const layer = document.getElementById('ripple-layer');
-  const r = document.createElement('div');
-  r.className = 'ripple';
-  r.style.cssText = `
-    left:${cx - size/2}px; top:${cy - size/2}px;
-    width:${size}px; height:${size}px;
-    border:2px solid ${color};
-    box-shadow: 0 0 12px ${color};
-  `;
-  layer.appendChild(r);
-  r.addEventListener('animationend', () => r.remove());
-}
-
-// ─── EQ Bars ────────────────────────────────────────────────────────────────
-
-let eqBars = [];
-let eqDecay = [];
-function initEQ() {
-  eqBars = Array.from(document.querySelectorAll('.eq-bar'));
-  eqDecay = eqBars.map(() => 0);
-}
-function bumpEQ() {
-  eqBars.forEach((bar, i) => {
-    eqDecay[i] = Math.random() * 28 + 6;
-    bar.style.height = eqDecay[i] + 'px';
-  });
-}
-function tickEQ() {
-  eqBars.forEach((bar, i) => {
-    if (pressedKeys.size > 0) {
-      const target = Math.random() * 28 + 6;
-      eqDecay[i] = eqDecay[i] * 0.7 + target * 0.3;
-    } else {
-      eqDecay[i] = Math.max(3, eqDecay[i] * 0.88);
-    }
-    bar.style.height = eqDecay[i] + 'px';
-  });
-}
-setInterval(tickEQ, 80);
-
-// ─── Background Canvas ──────────────────────────────────────────────────────
-
-const canvas = document.getElementById('bg-canvas');
-const ctx    = canvas.getContext('2d');
-let particles = [];
-let W, H;
-
-function resizeCanvas() {
-  W = canvas.width  = window.innerWidth;
-  H = canvas.height = window.innerHeight;
-}
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
-
-function spawnParticle() {
-  const x = Math.random() * W;
-  const y = Math.random() * H;
-  const color = ['#00d4ff','#a855f7','#22d3ee','#e879f9'][Math.floor(Math.random()*4)];
-  particles.push({ x, y, vx: (Math.random()-0.5)*0.4, vy: -(Math.random()*0.6+0.1), alpha: Math.random()*0.6+0.2, r: Math.random()*1.5+0.5, color, life: 0, maxLife: 120+Math.random()*120 });
-}
-
-function drawBG() {
-  ctx.clearRect(0, 0, W, H);
-
-  // Ambient grid
-  ctx.strokeStyle = 'rgba(0,212,255,0.03)';
-  ctx.lineWidth = 1;
-  const gridSize = 60;
-  for (let x = 0; x < W; x += gridSize) {
-    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
-  }
-  for (let y = 0; y < H; y += gridSize) {
-    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
-  }
-
-  // Particles
-  if (pressedKeys.size > 0 && Math.random() < 0.4) spawnParticle();
-  if (Math.random() < 0.05) spawnParticle(); // idle ambient
-
-  particles = particles.filter(p => p.life < p.maxLife);
-  particles.forEach(p => {
-    p.x  += p.vx; p.y += p.vy;
-    p.life++;
-    const fade = Math.sin((p.life / p.maxLife) * Math.PI);
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
-    ctx.fillStyle = p.color.replace(')', `,${p.alpha * fade})`).replace('rgb','rgba').replace('##','#');
-    // simple approach:
-    ctx.globalAlpha = p.alpha * fade;
-    ctx.fillStyle = p.color;
-    ctx.fill();
-    ctx.globalAlpha = 1;
-  });
-
-  // Active pulse glow from center bottom
-  if (pressedKeys.size > 0) {
-    const grad = ctx.createRadialGradient(W/2, H, 0, W/2, H, H*0.7);
-    grad.addColorStop(0, `rgba(0,212,255,0.04)`);
-    grad.addColorStop(1, 'transparent');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
-  }
-
-  requestAnimationFrame(drawBG);
-}
-drawBG();
-
-// ─── Volume Control ─────────────────────────────────────────────────────────
-
-const volSlider  = document.getElementById('volume-slider');
-const volDisplay = document.getElementById('volume-display');
-volSlider.addEventListener('input', () => {
-  const v = parseFloat(volSlider.value);
-  setVolume(v);
-  volDisplay.textContent = Math.round(v * 100) + '%';
-  volSlider.style.setProperty('--pct', Math.round(v*100) + '%');
-});
-
-// ─── Octave Controls ────────────────────────────────────────────────────────
-
-function setOctave(o) {
-  baseOctave = Math.max(1, Math.min(7, o));
-  document.getElementById('octave-display').textContent = baseOctave;
-  setStatus(`Octave set to ${baseOctave}`);
-}
-document.getElementById('oct-up').addEventListener('click', () => setOctave(baseOctave + 1));
-document.getElementById('oct-down').addEventListener('click', () => setOctave(baseOctave - 1));
-
-// ─── Sustain Toggle ─────────────────────────────────────────────────────────
-
-const btnSustain = document.getElementById('btn-sustain');
-btnSustain.addEventListener('click', () => {
-  sustainMode = !sustainMode;
-  btnSustain.dataset.active = sustainMode;
-  btnSustain.textContent = sustainMode ? 'ON' : 'OFF';
-  if (!sustainMode) {
-    // Release all held notes
-    Object.entries(activeNotes).forEach(([code, freq]) => {
-      const s = synths[currentInst];
-      s.triggerRelease(freq, Tone.now());
-    });
-  }
-  setStatus(`Sustain mode ${sustainMode ? 'ON' : 'OFF'}`);
-});
-
-// ─── Recording ──────────────────────────────────────────────────────────────
-
-const btnRecord = document.getElementById('btn-record');
-const btnPlay   = document.getElementById('btn-play');
-const btnClear  = document.getElementById('btn-clear');
-const recIndicator = document.getElementById('recording-indicator');
-
-btnRecord.addEventListener('click', () => {
-  if (!isRecording) {
-    isRecording = true;
-    recordedNotes = [];
-    recordStartTime = performance.now();
-    btnRecord.classList.add('active');
-    recIndicator.classList.remove('hidden');
-    btnPlay.disabled  = true;
-    btnClear.disabled = true;
-    setStatus('Recording... play something!');
-  } else {
-    isRecording = false;
-    btnRecord.classList.remove('active');
-    recIndicator.classList.add('hidden');
-    if (recordedNotes.length > 0) {
-      btnPlay.disabled  = false;
-      btnClear.disabled = false;
-      setStatus(`Recorded ${recordedNotes.filter(n=>n.type==='on').length} notes. Press PLAY to listen back.`);
-    } else {
-      setStatus('Recording stopped — nothing captured.');
-    }
-  }
-});
-
-function startPlayback() {
-  stopPlayback();
-  if (!recordedNotes.length) return;
-  setStatus('Playing back recording...');
-  recordedNotes.forEach(evt => {
-    const tid = setTimeout(() => {
-      if (evt.type === 'on') {
-        const s = synths[currentInst];
-        s.triggerAttack(evt.freq, Tone.now());
-        updateNoteDisplay(evt.name);
-        const codeEntry = Object.keys(KEY_MAP).find(k => KEY_MAP[k].rowNote === evt.name || noteForCode(k)?.name === evt.name?.replace(/\d/g,''));
-        if (codeEntry) activateKey(codeEntry);
-      } else {
-        const s = synths[currentInst];
-        const freqEvt = recordedNotes.find(n => n.type==='on' && n.code === evt.code)?.freq;
-        if (freqEvt) s.triggerRelease(freqEvt, Tone.now());
-        if (evt.code) deactivateKey(evt.code);
-      }
-    }, evt.t);
-    playbackTimeout.push(tid);
-  });
-  const lastT = recordedNotes[recordedNotes.length - 1]?.t || 0;
-  const endTid = setTimeout(() => {
-    resetNoteDisplay();
-    if (isLooping) {
-      startPlayback();
-    } else {
-      setStatus('Playback complete.');
-    }
-  }, lastT + 800);
-  playbackTimeout.push(endTid);
-}
-
-btnPlay.addEventListener('click', () => {
-  startPlayback();
-});
-
-function stopPlayback() {
-  playbackTimeout.forEach(clearTimeout);
-  playbackTimeout = [];
-}
-
-btnClear.addEventListener('click', () => {
-  stopPlayback();
-  recordedNotes = [];
-  btnPlay.disabled  = true;
-  btnClear.disabled = true;
-  setStatus('Recording cleared.');
-  resetNoteDisplay();
-});
-
-const btnLoop = document.getElementById('btn-loop');
-btnLoop.addEventListener('click', () => {
-  isLooping = !isLooping;
-  btnLoop.dataset.active = isLooping;
-  setStatus(`Loop mode ${isLooping ? 'ON' : 'OFF'}`);
-});
-
-// ─── Instrument & FX Listeners ───────────────────────────────────────────────
-
-document.querySelectorAll('.inst-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.inst-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    currentInst = btn.dataset.inst;
-    const c = INSTRUMENTS[currentInst];
-    document.documentElement.style.setProperty('--blue', c.color);
-    document.documentElement.style.setProperty('--shadow-blue', `0 0 20px ${c.shadow}`);
-    setStatus(`Instrument: ${c.name}`);
-  });
-});
-
-const btnReverb = document.getElementById('btn-reverb');
-btnReverb.addEventListener('click', () => {
-  useReverb = !useReverb;
-  btnReverb.dataset.active = useReverb;
-  updateFXRouting();
-  setStatus(`Reverb ${useReverb ? 'ON' : 'OFF'}`);
-});
-
-const btnEcho = document.getElementById('btn-echo');
-btnEcho.addEventListener('click', () => {
-  useEcho = !useEcho;
-  btnEcho.dataset.active = useEcho;
-  updateFXRouting();
-  setStatus(`Echo ${useEcho ? 'ON' : 'OFF'}`);
-});
-
-// ─── Theme Switcher ─────────────────────────────────────────────────────────
-
-document.getElementById('btn-theme').addEventListener('click', () => {
-  themeIdx = (themeIdx + 1) % THEMES.length;
-  document.documentElement.dataset.theme = THEMES[themeIdx] === 'default' ? '' : THEMES[themeIdx];
-  setStatus(`Theme: ${THEMES[themeIdx].toUpperCase()}`);
-});
-
-// ─── Fullscreen ─────────────────────────────────────────────────────────────
-
-document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
-function toggleFullscreen() {
-  if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
-  else document.exitFullscreen().catch(()=>{});
-}
-
-// ─── Help Modal ─────────────────────────────────────────────────────────────
-
-document.getElementById('btn-help').addEventListener('click', () => {
-  document.getElementById('help-modal').classList.remove('hidden');
-});
-document.getElementById('modal-close').addEventListener('click', () => {
-  document.getElementById('help-modal').classList.add('hidden');
-});
-document.getElementById('help-modal').addEventListener('click', e => {
-  if (e.target.classList.contains('modal-backdrop')) {
-    document.getElementById('help-modal').classList.add('hidden');
-  }
-});
-
-// ─── Keyboard Event Handling ─────────────────────────────────────────────────
-
-document.addEventListener('keydown', e => {
-  // Block browser shortcuts only for piano keys
-  if (KEY_MAP[e.code]) e.preventDefault();
-  if (e.repeat) return;
-
-  // Special keys
-  if (e.code === 'KeyF' && !KEY_MAP['KeyF']) { toggleFullscreen(); return; }
-  if (e.code === 'Escape') { document.getElementById('help-modal').classList.add('hidden'); return; }
-
-  if (!KEY_MAP[e.code]) return;
-  Tone.start();
-  playNote(e.code);
-});
-
-document.addEventListener('keyup', e => {
-  if (!KEY_MAP[e.code]) return;
-  stopNote(e.code);
-});
-
-// Spacebar = Dash Sound
-window.addEventListener('keydown', e => {
-  if (e.code === 'Space') {
-    e.preventDefault();
-    if (e.repeat) return;
-    Tone.start();
-    if (noiseSynth) noiseSynth.triggerAttackRelease("16n", Tone.now(), 0.8);
-    bumpEQ();
-  }
-});
-
-// ─── Status Bar ─────────────────────────────────────────────────────────────
-
-function setStatus(msg) {
-  document.getElementById('status-text').textContent = msg;
-}
-
-// ─── Loading Sequence ────────────────────────────────────────────────────────
-
-const LOAD_STEPS = [
-  { msg: 'Initializing Audio Engine...',  pct: 10 },
-  { msg: 'Loading Tone.js Synthesizer...', pct: 30 },
-  { msg: 'Building Oscillator Bank...',   pct: 50 },
-  { msg: 'Calibrating Reverb Nodes...',   pct: 65 },
-  { msg: 'Rendering Keyboard Matrix...',  pct: 80 },
-  { msg: 'Igniting Neon Circuits...',     pct: 92 },
-  { msg: 'NEXUS ONLINE ✓',               pct: 100 },
-];
-
-async function runLoader() {
-  const bar    = document.getElementById('loader-bar');
-  const status = document.getElementById('loader-status');
-
-  for (const step of LOAD_STEPS) {
-    status.textContent = step.msg;
-    bar.style.width    = step.pct + '%';
-    await sleep(340);
-  }
-
-  await sleep(500);
-  document.getElementById('loading-screen').classList.add('fade-out');
-  document.getElementById('app').classList.remove('hidden');
-
-  // Build after reveal
-  buildKeyboard();
-  buildAudio();
-  initEQ();
-  setStatus('READY — Press any mapped key to play');
-}
-
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-// ─── Boot ────────────────────────────────────────────────────────────────────
-
-window.addEventListener('DOMContentLoaded', () => {
-  runLoader();
-});
