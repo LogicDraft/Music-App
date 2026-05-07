@@ -531,9 +531,10 @@ button { border: 0; }
   display: flex;
   min-height: 0;
   width: 100%;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  overflow: auto;
+  overflow: hidden;
+  padding-top: 1rem;
 }
 
 .piano-wrap, .drum-wrap, .guitar-wrap, .pads-wrap, .strings-wrap {
@@ -543,29 +544,44 @@ button { border: 0; }
   background: var(--surface);
   box-shadow: var(--shadow-sm);
 }
-.piano-wrap { display: flex; flex-direction: column; gap: .55rem; padding: 1rem; }
-.piano-row { display: flex; align-items: center; gap: .7rem; min-width: max-content; }
+.piano-wrap {
+  display: flex;
+  max-width: 1120px;
+  flex-direction: column;
+  gap: .48rem;
+  margin: 0 auto;
+  padding: .85rem 1rem;
+}
+.piano-row {
+  display: grid;
+  grid-template-columns: 5.4rem 1fr;
+  align-items: center;
+  gap: .85rem;
+}
 .piano-row-label {
-  width: 5.2rem;
-  flex: 0 0 auto;
   color: var(--muted);
   font-size: .72rem;
   font-weight: 700;
   text-align: right;
 }
-.piano-keys { display: flex; gap: .45rem; }
-.piano-row:nth-child(2) .piano-keys { padding-left: 1.6rem; }
-.piano-row:nth-child(3) .piano-keys { padding-left: 3.2rem; }
+.piano-keys {
+  display: flex;
+  gap: .45rem;
+  min-width: 0;
+}
+.piano-row:nth-child(1) .piano-keys { padding-left: 0; }
+.piano-row:nth-child(2) .piano-keys { padding-left: 1.9rem; }
+.piano-row:nth-child(3) .piano-keys { padding-left: 3.8rem; }
 .pkey {
   position: relative;
   display: flex;
-  width: clamp(52px, 5vw, 72px);
-  height: clamp(58px, 7vh, 76px);
+  width: clamp(54px, 5vw, 68px);
+  height: clamp(52px, 6vh, 62px);
   flex: 0 0 auto;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: .18rem;
+  gap: .1rem;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -576,7 +592,7 @@ button { border: 0; }
 .pkey.black { background: linear-gradient(180deg, #3c4043, #202124); color: #e8eaed; border-color: #3c4043; }
 [data-theme="dark"] .pkey.white { background: linear-gradient(180deg, #2a2e35, #20242b); }
 [data-theme="dark"] .pkey.black { background: linear-gradient(180deg, #111315, #08090b); }
-.pk-label { font-size: 1rem; font-weight: 800; }
+.pk-label { font-size: .98rem; font-weight: 800; line-height: 1; }
 .pk-note { color: var(--subtle); font-family: var(--mono); font-size: .67rem; }
 .pkey:hover:not(.active) { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 .pkey.active {
