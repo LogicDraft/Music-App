@@ -20,6 +20,12 @@ const SOUND_PRESETS = {
   punch: { name: 'Punch', reverb: false, echo: false, reverbWet: 0.08, echoWet: 0.08 }
 };
 let soundPreset = 'studio';
+let tempoBpm = 120;
+let metronomeOn = false;
+let metronomeTimer = null;
+let metronomeBeat = 0;
+let metronomeSynth = null;
+let performanceMode = false;
 
 function renderView(inst) {
   const el = document.getElementById('inst-view');
@@ -285,7 +291,9 @@ function saveSettings() {
     useEcho,
     isLooping,
     theme: themeIdx === 1 ? 'dark' : 'light',
-    soundPreset
+    soundPreset,
+    tempoBpm,
+    performanceMode
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
@@ -300,6 +308,8 @@ function applySavedSettings() {
   if (typeof saved.useEcho === 'boolean') useEcho = saved.useEcho;
   if (typeof saved.isLooping === 'boolean') isLooping = saved.isLooping;
   if (saved.soundPreset && SOUND_PRESETS[saved.soundPreset]) soundPreset = saved.soundPreset;
+  if (Number.isFinite(saved.tempoBpm)) tempoBpm = Math.min(240, Math.max(40, saved.tempoBpm));
+  if (typeof saved.performanceMode === 'boolean') performanceMode = saved.performanceMode;
   themeIdx = saved.theme === 'dark' ? 1 : 0;
   document.documentElement.dataset.theme = themeIdx === 1 ? 'dark' : '';
   syncControlsFromState();
@@ -319,8 +329,11 @@ function syncControlsFromState() {
   document.getElementById('btn-reverb').dataset.on = useReverb;
   document.getElementById('btn-echo').dataset.on = useEcho;
   document.getElementById('btn-loop').dataset.on = isLooping;
+  document.getElementById('btn-metro').dataset.on = metronomeOn;
+  document.getElementById('bpm-val').textContent = tempoBpm;
   document.querySelectorAll('.inst-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.inst === currentInst));
   document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.preset === soundPreset));
+  syncPerformanceButton();
 }
 
 function applySoundPreset(name, persist = false, updateFx = true) {
@@ -389,6 +402,89 @@ function stopTimelinePlayback() {
   document.getElementById('timeline-track').classList.remove('playing');
 }
 
+function initMetronome() {
+  metronomeSynth = new Tone.MembraneSynth({
+    pitchDecay: 0.012,
+    octaves: 2,
+    oscillator: { type: 'sine' },
+    envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.05 },
+    volume: -11
+  }).connect(limiter || Tone.Destination);
+}
+
+function metronomeInterval() {
+  return 60000 / tempoBpm;
+}
+
+function flashMetronomeButton() {
+  const btn = document.getElementById('btn-metro');
+  btn.classList.remove('metro-tick');
+  void btn.offsetWidth;
+  btn.classList.add('metro-tick');
+}
+
+function tickMetronome() {
+  const accented = metronomeBeat % 4 === 0;
+  const note = accented ? 'C5' : 'C4';
+  metronomeSynth?.triggerAttackRelease(note, '32n', Tone.now(), accented ? 0.75 : 0.42);
+  flashMetronomeButton();
+  metronomeBeat = (metronomeBeat + 1) % 4;
+}
+
+function startMetronome(persist = true) {
+  if (metronomeOn) return;
+  Tone.start();
+  metronomeOn = true;
+  metronomeBeat = 0;
+  tickMetronome();
+  metronomeTimer = setInterval(tickMetronome, metronomeInterval());
+  syncControlsFromState();
+  setStatus(`Metronome on at ${tempoBpm} BPM.`);
+  if (persist) saveSettings();
+}
+
+function stopMetronome(persist = true) {
+  if (metronomeTimer) clearInterval(metronomeTimer);
+  metronomeTimer = null;
+  metronomeOn = false;
+  metronomeBeat = 0;
+  syncControlsFromState();
+  setStatus('Metronome off.');
+  if (persist) saveSettings();
+}
+
+function restartMetronome() {
+  if (!metronomeOn) return;
+  if (metronomeTimer) clearInterval(metronomeTimer);
+  metronomeBeat = 0;
+  tickMetronome();
+  metronomeTimer = setInterval(tickMetronome, metronomeInterval());
+}
+
+function setTempo(nextTempo) {
+  tempoBpm = Math.min(240, Math.max(40, nextTempo));
+  syncControlsFromState();
+  restartMetronome();
+  setStatus(`Tempo: ${tempoBpm} BPM`);
+  saveSettings();
+}
+
+function syncPerformanceButton() {
+  const btn = document.getElementById('btn-performance');
+  if (!btn) return;
+  btn.dataset.on = performanceMode;
+  btn.querySelector('.material-symbols-rounded').textContent = performanceMode ? 'dashboard_customize' : 'select_window';
+  btn.querySelector('.perf-label').textContent = performanceMode ? 'Studio' : 'Focus';
+  document.body.classList.toggle('performance-mode', performanceMode);
+}
+
+function setPerformanceMode(on, persist = true) {
+  performanceMode = on;
+  syncPerformanceButton();
+  setStatus(performanceMode ? 'Performance mode on.' : 'Studio controls restored.');
+  if (persist) saveSettings();
+}
+
 document.getElementById('vol').addEventListener('input', e => {
   setVol(parseFloat(e.target.value));
   document.getElementById('vol-val').textContent = `${Math.round(e.target.value * 100)}%`;
@@ -442,6 +538,10 @@ const btnClr = document.getElementById('btn-clr');
 const recInd = document.getElementById('rec-ind');
 const keymapDialog = document.getElementById('keymap-dialog');
 
+document.getElementById('btn-performance').addEventListener('click', () => {
+  setPerformanceMode(!performanceMode);
+});
+
 document.getElementById('btn-keymap').addEventListener('click', () => {
   renderKeymap();
   keymapDialog.classList.remove('hidden');
@@ -457,6 +557,13 @@ document.querySelector('[data-close-keymap]').addEventListener('click', () => {
 
 document.querySelectorAll('.preset-btn').forEach(btn => {
   btn.addEventListener('click', () => applySoundPreset(btn.dataset.preset, true, true));
+});
+
+document.getElementById('bpm-dn').addEventListener('click', () => setTempo(tempoBpm - 5));
+document.getElementById('bpm-up').addEventListener('click', () => setTempo(tempoBpm + 5));
+document.getElementById('btn-metro').addEventListener('click', () => {
+  if (metronomeOn) stopMetronome();
+  else startMetronome();
 });
 
 btnRec.addEventListener('click', () => {
@@ -629,6 +736,7 @@ async function boot() {
   document.getElementById('app').classList.remove('hidden');
   applySavedSettings();
   buildAudio();
+  initMetronome();
   applySoundPreset(soundPreset, false, false);
   initEQ();
   renderView(currentInst);

@@ -215,6 +215,11 @@ button { border: 0; }
   color: var(--accent);
   box-shadow: var(--shadow-sm);
 }
+.hbtn[data-on="true"] {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  color: var(--accent);
+}
 
 #inst-selector {
   position: relative;
@@ -329,6 +334,15 @@ button { border: 0; }
   font-weight: 800;
   text-align: center;
 }
+.metro-grp { flex: 0 0 auto; }
+.metro-val {
+  min-width: 2.4rem;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: .9rem;
+  font-weight: 800;
+  text-align: center;
+}
 .tog {
   min-height: 2rem;
   padding: 0 .72rem;
@@ -339,6 +353,16 @@ button { border: 0; }
   border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
   background: color-mix(in srgb, var(--accent) 12%, var(--surface));
   color: var(--accent);
+}
+#btn-metro.metro-tick {
+  animation: metroTick .18s ease-out;
+}
+@keyframes metroTick {
+  50% {
+    border-color: var(--red);
+    color: var(--red);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--red) 12%, transparent);
+  }
 }
 .preset-grp { flex: 0 0 auto; justify-content: center; }
 #preset-tabs {
@@ -847,6 +871,35 @@ button { border: 0; }
   #controls-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .eq-grp { grid-column: span 2; }
   .preset-grp, .record-grp { justify-content: flex-start; }
+}
+
+body.performance-mode #inst-selector,
+body.performance-mode #controls-row,
+body.performance-mode #timeline-panel,
+body.performance-mode #status-bar {
+  display: none;
+}
+body.performance-mode #main {
+  width: min(1480px, calc(100vw - 3rem));
+  max-height: calc(100vh - 72px);
+  justify-content: center;
+  padding: 1.25rem 0;
+}
+body.performance-mode #performance-area {
+  flex: 1;
+  min-height: min(720px, calc(100vh - 120px));
+  align-content: center;
+  gap: 1rem;
+  padding: 1.2rem;
+}
+body.performance-mode #note-display,
+body.performance-mode #inst-view {
+  width: min(1280px, 100%);
+  margin-inline: auto;
+}
+body.performance-mode .piano-wrap {
+  width: min(100%, 1160px);
+  padding: 1.15rem;
 }
 
 @media (max-height: 820px) {

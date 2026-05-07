@@ -50,6 +50,10 @@
       </div>
       <div id="inst-badge"></div>
       <div class="h-controls">
+        <button id="btn-performance" class="hbtn" title="Toggle performance mode" data-on="false">
+          <span class="material-symbols-rounded">select_window</span>
+          <span class="perf-label">Focus</span>
+        </button>
         <button id="btn-keymap" class="hbtn" title="Show keyboard map">
           <span class="material-symbols-rounded">keyboard</span>
           <span>Keys</span>
@@ -92,6 +96,13 @@
         <div class="ctrl-grp">
           <span class="ctrl-lbl">Sustain</span>
           <button class="tog" id="btn-sustain" data-on="false">Off</button>
+        </div>
+        <div class="ctrl-grp metro-grp">
+          <span class="ctrl-lbl">Tempo</span>
+          <button class="oct-btn" id="bpm-dn" title="Slow down"><span class="material-symbols-rounded">remove</span></button>
+          <span class="metro-val" id="bpm-val">120</span>
+          <button class="oct-btn" id="bpm-up" title="Speed up"><span class="material-symbols-rounded">add</span></button>
+          <button class="tog" id="btn-metro" data-on="false">Click</button>
         </div>
         <div class="ctrl-grp">
           <span class="ctrl-lbl">FX</span>
