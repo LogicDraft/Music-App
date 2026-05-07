@@ -3,30 +3,31 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NEXUS STUDIO — Virtual Instrument Workstation</title>
-  <meta name="description" content="Futuristic virtual instrument studio. Play Piano, Drums, Guitar, Synth and more using your laptop keyboard." />
+  <title>Nexus Studio | Virtual Instrument Workstation</title>
+  <meta name="description" content="A clean virtual instrument studio for playing piano, drums, guitar, synth and more using your laptop keyboard." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@500;600&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-  <!-- Mobile Warning -->
   <div id="mobile-warning">
     <div class="mw-inner">
-      <div class="mw-icon">🎵</div>
-      <h1>NEXUS STUDIO</h1>
-      <p>Best experienced on<br /><strong>laptop or desktop.</strong></p>
+      <span class="material-symbols-rounded mw-icon">desktop_windows</span>
+      <h1>Nexus Studio</h1>
+      <p>Best experienced on a laptop or desktop.</p>
       <p class="mw-sub">A full keyboard is required to play.</p>
     </div>
   </div>
 
-  <!-- Loading Screen -->
   <div id="loading-screen">
     <div class="ld-content">
-      <div class="ld-logo">NEXUS<span>STUDIO</span></div>
-      <div class="ld-sub">VIRTUAL INSTRUMENT WORKSTATION</div>
+      <div class="ld-logo">
+        <span class="ld-mark">N</span>
+        <span>Nexus Studio</span>
+      </div>
+      <div class="ld-sub">Preparing your instrument workspace</div>
       <div class="ld-bar-wrap"><div class="ld-bar" id="ld-bar"></div></div>
       <div class="ld-status" id="ld-status">Initializing...</div>
       <div class="ld-eq">
@@ -36,68 +37,72 @@
     </div>
   </div>
 
-  <!-- App -->
   <div id="app" class="hidden">
     <canvas id="bg-canvas"></canvas>
 
-    <!-- Header -->
     <header id="app-header">
-      <div class="h-logo">
-        <span class="h-nx">NX</span><span class="h-st">STUDIO</span>
+      <div class="h-logo" aria-label="Nexus Studio">
+        <span class="h-mark">N</span>
+        <div>
+          <span class="h-title">Nexus Studio</span>
+          <span class="h-subtitle">Virtual Instrument Workstation</span>
+        </div>
       </div>
       <div id="inst-badge"></div>
       <div class="h-controls">
-        <button id="btn-theme" class="hbtn">🌓 THEME</button>
-        <button id="btn-fullscreen" class="hbtn">⛶ FULL</button>
+        <button id="btn-theme" class="hbtn" title="Toggle theme">
+          <span class="material-symbols-rounded">light_mode</span>
+          <span>Theme</span>
+        </button>
+        <button id="btn-fullscreen" class="hbtn icon-only" title="Fullscreen">
+          <span class="material-symbols-rounded">fullscreen</span>
+        </button>
       </div>
     </header>
 
-    <!-- Instrument Selector -->
-    <div id="inst-selector">
-      <button class="inst-btn active" data-inst="piano">🎹 PIANO</button>
-      <button class="inst-btn" data-inst="epiano">🎹 E-PIANO</button>
-      <button class="inst-btn" data-inst="synth">🎛️ SYNTH</button>
-      <button class="inst-btn" data-inst="guitar">🎸 GUITAR</button>
-      <button class="inst-btn" data-inst="bass">🎸 BASS</button>
-      <button class="inst-btn" data-inst="violin">🎻 VIOLIN</button>
-      <button class="inst-btn" data-inst="flute">🪈 FLUTE</button>
-      <button class="inst-btn" data-inst="drums">🥁 DRUMS</button>
-      <button class="inst-btn" data-inst="pads">✨ EDM PADS</button>
+    <div id="inst-selector" aria-label="Instrument selector">
+      <button class="inst-btn active" data-inst="piano"><span class="material-symbols-rounded">piano</span><span>Piano</span></button>
+      <button class="inst-btn" data-inst="epiano"><span class="material-symbols-rounded">queue_music</span><span>E-Piano</span></button>
+      <button class="inst-btn" data-inst="synth"><span class="material-symbols-rounded">graphic_eq</span><span>Synth</span></button>
+      <button class="inst-btn" data-inst="guitar"><span class="material-symbols-rounded">music_note</span><span>Guitar</span></button>
+      <button class="inst-btn" data-inst="bass"><span class="material-symbols-rounded">music_note</span><span>Bass</span></button>
+      <button class="inst-btn" data-inst="violin"><span class="material-symbols-rounded">album</span><span>Violin</span></button>
+      <button class="inst-btn" data-inst="flute"><span class="material-symbols-rounded">air</span><span>Flute</span></button>
+      <button class="inst-btn" data-inst="drums"><span class="material-symbols-rounded">radio_button_checked</span><span>Drums</span></button>
+      <button class="inst-btn" data-inst="pads"><span class="material-symbols-rounded">grid_view</span><span>EDM Pads</span></button>
     </div>
 
     <main id="main">
-
-      <!-- Controls row -->
-      <div id="controls-row">
-        <div class="ctrl-grp">
-          <label class="ctrl-lbl">VOLUME</label>
+      <section id="controls-row" aria-label="Studio controls">
+        <div class="ctrl-grp volume-grp">
+          <label class="ctrl-lbl" for="vol">Volume</label>
           <input type="range" id="vol" min="0" max="1" step="0.01" value="0.75" />
           <span class="ctrl-val" id="vol-val">75%</span>
         </div>
         <div class="ctrl-grp">
-          <label class="ctrl-lbl">OCTAVE</label>
-          <button class="oct-btn" id="oct-dn">▼</button>
+          <span class="ctrl-lbl">Octave</span>
+          <button class="oct-btn" id="oct-dn" title="Octave down"><span class="material-symbols-rounded">remove</span></button>
           <span class="oct-val" id="oct-val">4</span>
-          <button class="oct-btn" id="oct-up">▲</button>
+          <button class="oct-btn" id="oct-up" title="Octave up"><span class="material-symbols-rounded">add</span></button>
         </div>
         <div class="ctrl-grp">
-          <label class="ctrl-lbl">SUSTAIN</label>
-          <button class="tog" id="btn-sustain" data-on="false">OFF</button>
+          <span class="ctrl-lbl">Sustain</span>
+          <button class="tog" id="btn-sustain" data-on="false">Off</button>
         </div>
         <div class="ctrl-grp">
-          <label class="ctrl-lbl">FX</label>
-          <button class="tog" id="btn-reverb" data-on="true">REVERB</button>
-          <button class="tog" id="btn-echo" data-on="false">ECHO</button>
+          <span class="ctrl-lbl">FX</span>
+          <button class="tog" id="btn-reverb" data-on="true">Reverb</button>
+          <button class="tog" id="btn-echo" data-on="false">Echo</button>
         </div>
-        <div class="ctrl-grp">
-          <label class="ctrl-lbl">RECORD</label>
-          <button class="rec-btn" id="btn-rec">⏺ REC</button>
-          <button class="rec-btn" id="btn-play" disabled>▶ PLAY</button>
-          <button class="tog" id="btn-loop" data-on="false">LOOP</button>
-          <button class="rec-btn" id="btn-clr" disabled>■ CLR</button>
+        <div class="ctrl-grp record-grp">
+          <span class="ctrl-lbl">Record</span>
+          <button class="rec-btn" id="btn-rec" title="Record"><span class="material-symbols-rounded">fiber_manual_record</span><span>Rec</span></button>
+          <button class="rec-btn" id="btn-play" disabled title="Play recording"><span class="material-symbols-rounded">play_arrow</span><span>Play</span></button>
+          <button class="tog" id="btn-loop" data-on="false">Loop</button>
+          <button class="rec-btn" id="btn-clr" disabled title="Clear recording"><span class="material-symbols-rounded">stop</span><span>Clear</span></button>
         </div>
         <div class="ctrl-grp eq-grp">
-          <label class="ctrl-lbl">SPECTRUM</label>
+          <span class="ctrl-lbl">Spectrum</span>
           <div id="eq-bars">
             <div class="eq-bar"></div><div class="eq-bar"></div><div class="eq-bar"></div>
             <div class="eq-bar"></div><div class="eq-bar"></div><div class="eq-bar"></div>
@@ -105,27 +110,23 @@
             <div class="eq-bar"></div><div class="eq-bar"></div><div class="eq-bar"></div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <!-- Note display -->
-      <div id="note-display">
-        <span id="note-name">—</span>
-        <span id="note-lbl">SELECT AN INSTRUMENT AND PRESS A KEY</span>
-      </div>
+      <section id="performance-area">
+        <div id="note-display">
+          <span id="note-name">-</span>
+          <span id="note-lbl">Select an instrument and press a key</span>
+        </div>
+        <div id="inst-view"></div>
+      </section>
 
-      <!-- Instrument View (dynamically replaced) -->
-      <div id="inst-view"></div>
-
-      <!-- Status Bar -->
       <div id="status-bar">
-        <span id="status-txt">READY — Select an instrument above</span>
-        <span id="rec-ind" class="hidden"><span class="recdot"></span> RECORDING</span>
+        <span id="status-txt">Ready. Select an instrument above.</span>
+        <span id="rec-ind" class="hidden"><span class="recdot"></span> Recording</span>
       </div>
-
     </main>
   </div>
 
-  <!-- Ripple layer -->
   <div id="ripple-layer"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
