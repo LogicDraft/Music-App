@@ -53,9 +53,9 @@ function buildPianoHTML(cfg) {
     <span class="pk-label">${k.label}</span><span class="pk-note">${k.note}</span></div>`;
 
   return `<div class="piano-wrap">
-    <div class="piano-row"><span class="piano-row-label">Sharps</span><div class="piano-keys">${top.map(pkey).join('')}</div></div>
-    <div class="piano-row"><span class="piano-row-label">Home row</span><div class="piano-keys">${mid.map(pkey).join('')}</div></div>
-    <div class="piano-row"><span class="piano-row-label">Low row</span><div class="piano-keys">${bot.map(pkey).join('')}</div></div>
+    <div class="piano-row piano-row-top"><div class="piano-keys">${top.map(pkey).join('')}</div></div>
+    <div class="piano-row piano-row-mid"><div class="piano-keys">${mid.map(pkey).join('')}</div></div>
+    <div class="piano-row piano-row-low"><div class="piano-keys">${bot.map(pkey).join('')}</div></div>
   </div>`;
 }
 
