@@ -274,6 +274,7 @@ function playNote(code) {
 
   if (isRecording) {
     recordedNotes.push({ code, note, t: performance.now()-recStart, type:'on', inst:currentInst });
+    if (typeof renderTimeline === 'function') renderTimeline();
   }
 }
 
@@ -288,5 +289,8 @@ function stopNote(code) {
   delete activeNotes[code];
   deactivateKey(code);
   if (pressedKeys.size === 0) resetNote();
-  if (isRecording) recordedNotes.push({ code, t:performance.now()-recStart, type:'off' });
+  if (isRecording) {
+    recordedNotes.push({ code, t:performance.now()-recStart, type:'off' });
+    if (typeof renderTimeline === 'function') renderTimeline();
+  }
 }

@@ -50,6 +50,10 @@
       </div>
       <div id="inst-badge"></div>
       <div class="h-controls">
+        <button id="btn-keymap" class="hbtn" title="Show keyboard map">
+          <span class="material-symbols-rounded">keyboard</span>
+          <span>Keys</span>
+        </button>
         <button id="btn-theme" class="hbtn" title="Toggle theme">
           <span class="material-symbols-rounded">light_mode</span>
           <span>Theme</span>
@@ -94,6 +98,15 @@
           <button class="tog" id="btn-reverb" data-on="true">Reverb</button>
           <button class="tog" id="btn-echo" data-on="false">Echo</button>
         </div>
+        <div class="ctrl-grp preset-grp">
+          <span class="ctrl-lbl">Preset</span>
+          <div id="preset-tabs" role="group" aria-label="Sound presets">
+            <button class="preset-btn active" data-preset="studio">Studio</button>
+            <button class="preset-btn" data-preset="warm">Warm</button>
+            <button class="preset-btn" data-preset="dream">Dream</button>
+            <button class="preset-btn" data-preset="punch">Punch</button>
+          </div>
+        </div>
         <div class="ctrl-grp record-grp">
           <span class="ctrl-lbl">Record</span>
           <button class="rec-btn" id="btn-rec" title="Record"><span class="material-symbols-rounded">fiber_manual_record</span><span>Rec</span></button>
@@ -120,11 +133,42 @@
         <div id="inst-view"></div>
       </section>
 
+      <section id="timeline-panel" aria-label="Recording timeline">
+        <div class="timeline-head">
+          <div>
+            <span class="timeline-title">Recording timeline</span>
+            <span id="timeline-meta">No notes recorded</span>
+          </div>
+          <span id="timeline-duration">0.0s</span>
+        </div>
+        <div id="timeline-track">
+          <div id="timeline-playhead"></div>
+          <div id="timeline-empty">Record a short phrase to see notes appear here.</div>
+          <div id="timeline-notes"></div>
+        </div>
+      </section>
+
       <div id="status-bar">
         <span id="status-txt">Ready. Select an instrument above.</span>
         <span id="rec-ind" class="hidden"><span class="recdot"></span> Recording</span>
       </div>
     </main>
+  </div>
+
+  <div id="keymap-dialog" class="hidden" role="dialog" aria-modal="true" aria-labelledby="keymap-title">
+    <div class="dialog-backdrop" data-close-keymap></div>
+    <section class="keymap-card">
+      <header class="keymap-head">
+        <div>
+          <h2 id="keymap-title">Keyboard map</h2>
+          <p id="keymap-subtitle">Current instrument shortcuts</p>
+        </div>
+        <button id="btn-close-keymap" class="hbtn icon-only" title="Close keyboard map">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </header>
+      <div id="keymap-grid"></div>
+    </section>
   </div>
 
   <div id="ripple-layer"></div>

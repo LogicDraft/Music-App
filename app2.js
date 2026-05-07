@@ -12,6 +12,15 @@ const INST_ICON = {
   pads: 'grid_view'
 };
 
+const STORAGE_KEY = 'nexus-studio-settings-v2';
+const SOUND_PRESETS = {
+  studio: { name: 'Studio', reverb: true, echo: false, reverbWet: 0.28, echoWet: 0.18 },
+  warm: { name: 'Warm', reverb: true, echo: false, reverbWet: 0.16, echoWet: 0.12 },
+  dream: { name: 'Dream', reverb: true, echo: true, reverbWet: 0.48, echoWet: 0.36 },
+  punch: { name: 'Punch', reverb: false, echo: false, reverbWet: 0.08, echoWet: 0.08 }
+};
+let soundPreset = 'studio';
+
 function renderView(inst) {
   const el = document.getElementById('inst-view');
   const cfg = INST[inst];
@@ -32,6 +41,8 @@ function renderView(inst) {
     k.addEventListener('mouseup', () => stopNote(code));
     k.addEventListener('mouseleave', () => stopNote(code));
   });
+
+  renderKeymap();
 }
 
 function buildPianoHTML(cfg) {
@@ -104,6 +115,41 @@ function buildStringsHTML(cfg) {
   }).join('');
 
   return `<div class="strings-wrap"><div class="strings-grid">${sections}</div></div>`;
+}
+
+function getInstrumentKeys(inst = currentInst) {
+  const cfg = INST[inst];
+  if (cfg.layout === 'piano') {
+    return cfg.keys.map(k => ({ key: k.label, note: k.note, role: k.type === 'black' ? 'Sharp key' : 'Natural key' }));
+  }
+  if (cfg.layout === 'guitar') {
+    return cfg.strings.flatMap(str => str.keys.map(k => ({ key: k.label, note: k.note, role: str.label })));
+  }
+  if (cfg.layout === 'strings') {
+    return cfg.sections.flatMap(sec => sec.keys.map(k => ({ key: k.label, note: k.note, role: sec.label })));
+  }
+  if (cfg.layout === 'drums') {
+    return cfg.pads.map(p => ({ key: p.label, note: p.name, role: 'Drum pad' }));
+  }
+  if (cfg.layout === 'pads') {
+    return cfg.pads.map(p => ({ key: p.label, note: p.name, role: p.note }));
+  }
+  return [];
+}
+
+function renderKeymap() {
+  const grid = document.getElementById('keymap-grid');
+  if (!grid) return;
+
+  const cfg = INST[currentInst];
+  document.getElementById('keymap-subtitle').textContent = `${cfg.name} shortcuts`;
+  grid.innerHTML = getInstrumentKeys().map(item => `<div class="keymap-item">
+    <span class="keycap">${item.key}</span>
+    <span>
+      <span class="keymap-note">${item.note}</span>
+      <span class="keymap-role">${item.role}</span>
+    </span>
+  </div>`).join('');
 }
 
 function activateKey(code) {
@@ -221,19 +267,145 @@ function spawnP() {
   requestAnimationFrame(drawBG);
 })();
 
+function readSavedSettings() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveSettings() {
+  const data = {
+    currentInst,
+    volume,
+    baseOctave,
+    sustainMode,
+    useReverb,
+    useEcho,
+    isLooping,
+    theme: themeIdx === 1 ? 'dark' : 'light',
+    soundPreset
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function applySavedSettings() {
+  const saved = readSavedSettings();
+  if (saved.currentInst && INST[saved.currentInst]) currentInst = saved.currentInst;
+  if (Number.isFinite(saved.volume)) volume = Math.min(1, Math.max(0, saved.volume));
+  if (Number.isFinite(saved.baseOctave)) baseOctave = Math.min(7, Math.max(1, saved.baseOctave));
+  if (typeof saved.sustainMode === 'boolean') sustainMode = saved.sustainMode;
+  if (typeof saved.useReverb === 'boolean') useReverb = saved.useReverb;
+  if (typeof saved.useEcho === 'boolean') useEcho = saved.useEcho;
+  if (typeof saved.isLooping === 'boolean') isLooping = saved.isLooping;
+  if (saved.soundPreset && SOUND_PRESETS[saved.soundPreset]) soundPreset = saved.soundPreset;
+  themeIdx = saved.theme === 'dark' ? 1 : 0;
+  document.documentElement.dataset.theme = themeIdx === 1 ? 'dark' : '';
+  syncControlsFromState();
+}
+
+function syncControlsFromState() {
+  const vol = document.getElementById('vol');
+  vol.value = volume;
+  vol.style.background = `linear-gradient(to right, var(--accent) ${volume * 100}%, var(--surface-soft) ${volume * 100}%)`;
+  document.getElementById('vol-val').textContent = `${Math.round(volume * 100)}%`;
+  document.getElementById('oct-val').textContent = baseOctave;
+
+  const sustain = document.getElementById('btn-sustain');
+  sustain.dataset.on = sustainMode;
+  sustain.textContent = sustainMode ? 'On' : 'Off';
+
+  document.getElementById('btn-reverb').dataset.on = useReverb;
+  document.getElementById('btn-echo').dataset.on = useEcho;
+  document.getElementById('btn-loop').dataset.on = isLooping;
+  document.querySelectorAll('.inst-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.inst === currentInst));
+  document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.preset === soundPreset));
+}
+
+function applySoundPreset(name, persist = false, updateFx = true) {
+  const preset = SOUND_PRESETS[name] || SOUND_PRESETS.studio;
+  soundPreset = name in SOUND_PRESETS ? name : 'studio';
+  if (updateFx) {
+    useReverb = preset.reverb;
+    useEcho = preset.echo;
+  }
+
+  if (reverb?.wet) reverb.wet.value = preset.reverbWet;
+  if (echo?.wet) echo.wet.value = preset.echoWet;
+  if (Object.keys(synths).length) routeFX();
+
+  syncControlsFromState();
+  setStatus(`Sound preset: ${preset.name}`);
+  if (persist) saveSettings();
+}
+
+function getRecordingStats() {
+  const noteOns = recordedNotes.filter(n => n.type === 'on');
+  const duration = recordedNotes.length ? Math.max(...recordedNotes.map(n => n.t || 0), 250) : 0;
+  return { noteOns, duration };
+}
+
+function renderTimeline() {
+  const notesEl = document.getElementById('timeline-notes');
+  const emptyEl = document.getElementById('timeline-empty');
+  const metaEl = document.getElementById('timeline-meta');
+  const durationEl = document.getElementById('timeline-duration');
+  const { noteOns, duration } = getRecordingStats();
+
+  if (!noteOns.length) {
+    notesEl.innerHTML = '';
+    emptyEl.classList.remove('hidden');
+    metaEl.textContent = 'No notes recorded';
+    durationEl.textContent = '0.0s';
+    return;
+  }
+
+  emptyEl.classList.add('hidden');
+  metaEl.textContent = `${noteOns.length} note${noteOns.length === 1 ? '' : 's'} captured`;
+  durationEl.textContent = `${(duration / 1000).toFixed(1)}s`;
+  notesEl.innerHTML = noteOns.map((ev, idx) => {
+    const off = recordedNotes.find(n => n.type === 'off' && n.code === ev.code && n.t > ev.t);
+    const left = Math.min(96, (ev.t / duration) * 100);
+    const width = Math.max(3.2, (((off?.t || ev.t + 220) - ev.t) / duration) * 100);
+    const lane = idx % 2;
+    return `<span class="timeline-note" style="left:${left}%;width:${Math.min(width, 100 - left)}%;top:${lane * 1.28}rem">${ev.note || ev.code}</span>`;
+  }).join('');
+}
+
+function startTimelinePlayback() {
+  const track = document.getElementById('timeline-track');
+  const { duration } = getRecordingStats();
+  if (!duration) return;
+
+  track.classList.remove('playing');
+  track.style.setProperty('--timeline-duration', `${Math.max(duration + 800, 900)}ms`);
+  track.style.setProperty('--timeline-width', `${track.clientWidth}px`);
+  void track.offsetWidth;
+  track.classList.add('playing');
+}
+
+function stopTimelinePlayback() {
+  document.getElementById('timeline-track').classList.remove('playing');
+}
+
 document.getElementById('vol').addEventListener('input', e => {
   setVol(parseFloat(e.target.value));
   document.getElementById('vol-val').textContent = `${Math.round(e.target.value * 100)}%`;
+  e.target.style.background = `linear-gradient(to right, var(--accent) ${e.target.value * 100}%, var(--surface-soft) ${e.target.value * 100}%)`;
+  saveSettings();
 });
 
 document.getElementById('oct-up').addEventListener('click', () => {
   baseOctave = Math.min(7, baseOctave + 1);
   document.getElementById('oct-val').textContent = baseOctave;
+  saveSettings();
 });
 
 document.getElementById('oct-dn').addEventListener('click', () => {
   baseOctave = Math.max(1, baseOctave - 1);
   document.getElementById('oct-val').textContent = baseOctave;
+  saveSettings();
 });
 
 const btnSus = document.getElementById('btn-sustain');
@@ -242,6 +414,7 @@ btnSus.addEventListener('click', () => {
   btnSus.dataset.on = sustainMode;
   btnSus.textContent = sustainMode ? 'On' : 'Off';
   setStatus(`Sustain ${sustainMode ? 'on' : 'off'}`);
+  saveSettings();
 });
 
 const btnRev = document.getElementById('btn-reverb');
@@ -250,6 +423,7 @@ btnRev.addEventListener('click', () => {
   btnRev.dataset.on = useReverb;
   routeFX();
   setStatus(`Reverb ${useReverb ? 'on' : 'off'}`);
+  saveSettings();
 });
 
 const btnEch = document.getElementById('btn-echo');
@@ -258,6 +432,7 @@ btnEch.addEventListener('click', () => {
   btnEch.dataset.on = useEcho;
   routeFX();
   setStatus(`Echo ${useEcho ? 'on' : 'off'}`);
+  saveSettings();
 });
 
 const btnRec = document.getElementById('btn-rec');
@@ -265,12 +440,32 @@ const btnPlay = document.getElementById('btn-play');
 const btnLoop = document.getElementById('btn-loop');
 const btnClr = document.getElementById('btn-clr');
 const recInd = document.getElementById('rec-ind');
+const keymapDialog = document.getElementById('keymap-dialog');
+
+document.getElementById('btn-keymap').addEventListener('click', () => {
+  renderKeymap();
+  keymapDialog.classList.remove('hidden');
+});
+
+document.getElementById('btn-close-keymap').addEventListener('click', () => {
+  keymapDialog.classList.add('hidden');
+});
+
+document.querySelector('[data-close-keymap]').addEventListener('click', () => {
+  keymapDialog.classList.add('hidden');
+});
+
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => applySoundPreset(btn.dataset.preset, true, true));
+});
 
 btnRec.addEventListener('click', () => {
   if (!isRecording) {
     isRecording = true;
     recordedNotes = [];
     recStart = performance.now();
+    renderTimeline();
+    stopTimelinePlayback();
     btnRec.classList.add('recording');
     recInd.classList.remove('hidden');
     btnPlay.disabled = true;
@@ -280,6 +475,7 @@ btnRec.addEventListener('click', () => {
     isRecording = false;
     btnRec.classList.remove('recording');
     recInd.classList.add('hidden');
+    renderTimeline();
     if (recordedNotes.length) {
       btnPlay.disabled = false;
       btnClr.disabled = false;
@@ -294,6 +490,7 @@ function startPlayback() {
   stopPlayback();
   if (!recordedNotes.length) return;
   setStatus('Playing back...');
+  startTimelinePlayback();
   recordedNotes.forEach(ev => {
     const tid = setTimeout(() => {
       if (ev.type === 'on') {
@@ -316,13 +513,17 @@ function startPlayback() {
   playTimers.push(setTimeout(() => {
     resetNote();
     if (isLooping) startPlayback();
-    else setStatus('Playback done.');
+    else {
+      stopTimelinePlayback();
+      setStatus('Playback done.');
+    }
   }, last + 800));
 }
 
 function stopPlayback() {
   playTimers.forEach(clearTimeout);
   playTimers = [];
+  stopTimelinePlayback();
 }
 
 btnPlay.addEventListener('click', startPlayback);
@@ -330,6 +531,7 @@ btnLoop.addEventListener('click', () => {
   isLooping = !isLooping;
   btnLoop.dataset.on = isLooping;
   setStatus(`Loop ${isLooping ? 'on' : 'off'}`);
+  saveSettings();
 });
 btnClr.addEventListener('click', () => {
   stopPlayback();
@@ -338,6 +540,7 @@ btnClr.addEventListener('click', () => {
   btnClr.disabled = true;
   setStatus('Cleared.');
   resetNote();
+  renderTimeline();
 });
 
 document.querySelectorAll('.inst-btn').forEach(btn => {
@@ -352,6 +555,7 @@ document.querySelectorAll('.inst-btn').forEach(btn => {
     pressedKeys.clear();
     renderView(currentInst);
     setStatus(`Instrument: ${INST[currentInst].name}`);
+    saveSettings();
   });
 });
 
@@ -359,6 +563,7 @@ document.getElementById('btn-theme').addEventListener('click', () => {
   themeIdx = (themeIdx + 1) % 2;
   document.documentElement.dataset.theme = themeIdx === 0 ? '' : 'dark';
   setStatus(`Theme: ${themeIdx === 0 ? 'light' : 'dark'}`);
+  saveSettings();
 });
 
 document.getElementById('btn-fullscreen').addEventListener('click', () => {
@@ -368,7 +573,11 @@ document.getElementById('btn-fullscreen').addEventListener('click', () => {
 
 document.addEventListener('keydown', e => {
   if (e.repeat) return;
-  if (e.code === 'Escape') return;
+  if (e.code === 'Escape') {
+    keymapDialog.classList.add('hidden');
+    return;
+  }
+  if (!keymapDialog.classList.contains('hidden')) return;
   if (e.code === 'Space') {
     e.preventDefault();
     Tone.start();
@@ -418,9 +627,12 @@ async function boot() {
   await sleep(400);
   document.getElementById('loading-screen').classList.add('out');
   document.getElementById('app').classList.remove('hidden');
+  applySavedSettings();
   buildAudio();
+  applySoundPreset(soundPreset, false, false);
   initEQ();
   renderView(currentInst);
+  renderTimeline();
   setStatus('Ready. Select an instrument and press keys to play.');
 }
 
